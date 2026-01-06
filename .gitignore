@@ -1,0 +1,52 @@
+# --- GERAL (Sistema Operacional e Editores) ---
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+*.log
+
+# --- ESP32 / ARDUINO / PLATFORMIO ---
+# Se usar PlatformIO
+.pio/
+.pioenvs/
+
+# Se usar ESP-IDF ou Arduino
+build/
+sdkconfig.old
+*.bin
+*.elf
+*.hex
+*.map
+*.o
+*.a
+
+# --- VHDL / FPGA (Ferramentas) ---
+# Vivado (Xilinx) - Gera MUITO lixo
+*.jou
+*.log
+*.str
+*.pb
+*.wdb
+*.jou
+.Xil/
+xx_xsim/
+*.bit
+*.mcs
+# Geralmente não versionamos pastas de 'runs' (impl_1, synth_1) exceto se quiser guardar os relatórios
+*.runs/
+*.ip_user_files/
+*.hw/
+*.sim/
+
+# Quartus (Intel/Altera)
+db/
+incremental_db/
+output_files/
+simulation/
+*.qws
+*.ppf
+*.ddb
+
+# --- Python (se tiver scripts auxiliares) ---
+__pycache__/
+*.pyc
