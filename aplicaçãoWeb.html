@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Controle Pong BLE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            /* Evita scroll, zoom, etc., em dispositivos móveis ao tocar */
+            touch-action: manipulation;
+        }
+        .btn-active:active {
+            transform: scale(0.95);
+            filter: brightness(0.9);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4 font-sans">
+
+    <div class="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 space-y-6">
+        
+        <div class="text-center">
+            <h1 class="text-3xl font-bold text-cyan-400">Controle Pong</h1>
+            <p class="text-gray-400 mt-2">Mova a raquete para cima ou para baixo</p>
+        </div>
+
+        <button id="connectButton" class="w-full bg-cyan-500 hover:bg-cyan-600 text-gray-900 font-bold py-3 px-4 rounded-lg transition-all duration-300 btn-active shadow-md">
+            Conectar ao Controle
+        </button>
+
+        <div id="status" class="text-center text-gray-400 py-2 bg-gray-700/50 rounded-lg">
+            Aguardando conexão...
+        </div>
+
+        <div id="controlPanel" class="hidden space-y-4 pt-4 border-t border-gray-700">
+            <!-- Botão para Cima -->
+            <button id="output1Button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-4 rounded-lg transition-all duration-300 btn-active shadow-md">
+                Cima
+            </button>
+            
+            <!-- Botão para Baixo -->
+            <button id="output2Button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-4 rounded-lg transition-all duration-300 btn-active shadow-md">
+                Baixo
+            </button>
+
+            <button id="disconnectButton" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 btn-active shadow-md mt-2">
+                Desconectar
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        const connectButton = document.getElementById('connectButton');
+        const disconnectButton = document.getElementById('disconnectButton');
+        const output1Button = document.getElementById('output1Button');
+        const output2Button = document.getElementById('output2Button');
+        const statusDiv = document.getElementById('status');
+        const controlPanel = document.getElementById('controlPanel');
+
+        let bleDevice;
+        let ledCharacteristic;
+
+        const SERVICE_UUID = 0x00ff;
+        const CHARACTERISTIC_UUID = 0xff01;
+
+        function updateUI(isConnected) {
+            connectButton.classList.toggle('hidden', isConnected);
+            controlPanel.classList.toggle('hidden', !isConnected);
+            statusDiv.textContent = isConnected ? `Conectado a ${bleDevice.name}` : 'Desconectado.';
+        }
+
+        async function connectDevice() {
+            try {
+                statusDiv.textContent = 'Procurando dispositivos...';
+                
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                statusDiv.textContent = 'Conectando ao servidor GATT...';
+                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                const server = await bleDevice.gatt.connect();
+
+                statusDiv.textContent = 'Obtendo o serviço...';
+                const service = await server.getPrimaryService(SERVICE_UUID);
+
+                statusDiv.textContent = 'Obtendo a característica...';
+                ledCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+                console.log('Conexão bem-sucedida!');
+                updateUI(true);
+
+            } catch (error) {
+                if (error.name !== 'NotFoundError') {
+                    console.error('Erro ao conectar:', error);
+                    statusDiv.textContent = `Erro: ${error.message}`;
+                } else {
+                    statusDiv.textContent = 'Busca cancelada.';
+                }
+                updateUI(false);
+            }
+        }
+
+        function disconnectDevice() {
+            if (!bleDevice || !bleDevice.gatt.connected) return;
+            bleDevice.gatt.disconnect();
+        }
+        
+        function onDisconnected() {
+            console.log('Dispositivo desconectado.');
+            updateUI(false);
+            ledCharacteristic = null;
+        }
+
+        async function sendCommand(command) {
+            if (!ledCharacteristic) return;
+            try {
+                const value = new TextEncoder().encode(command);
+                await ledCharacteristic.writeValueWithoutResponse(value);
+            } catch (error) {
+                console.error(`Erro ao enviar comando ${command}:`, error);
+            }
+        }
+        
+        function addButtonEvents(button, commandOn, commandOff) {
+            ['mousedown', 'touchstart'].forEach(evt => {
+                button.addEventListener(evt, (e) => {
+                    e.preventDefault();
+                    sendCommand(commandOn);
+                });
+            });
+            ['mouseup', 'mouseleave', 'touchend'].forEach(evt => {
+                button.addEventListener(evt, (e) => {
+                    e.preventDefault();
+                    sendCommand(commandOff);
+                });
+            });
+        }
+        
+        // O botão "Cima" envia os comandos '1' (pressionado) e '0' (solto)
+        addButtonEvents(output1Button, '1', '0');
+        // O botão "Baixo" envia os comandos '2' (pressionado) e '3' (solto)
+        addButtonEvents(output2Button, '2', '3');
+
+        connectButton.addEventListener('click', connectDevice);
+        disconnectButton.addEventListener('click', disconnectDevice);
+    </script>
+</body>
+</html>
